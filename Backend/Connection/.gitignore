@@ -1,0 +1,9 @@
+# This is the most important security file.
+# It tells git (and GitHub) to NEVER upload your secret keys.
+
+# Ignore the environment file
+.env
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
