@@ -1,0 +1,20 @@
+{
+  "trades": [
+    {
+      "orderId": "fff11e6d-4ba4-4ee4-97ae-a4137c64d9ac",
+      "strategy": "Bollinger_Bands",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "timestamp": 1764707111510,
+      "entryPrice": 91222.1
+    },
+    {
+      "orderId": "181ba0ac-61dd-4181-acd7-997306bc3650",
+      "strategy": "RSI",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "timestamp": 1764707217243,
+      "entryPrice": 91343.2
+    }
+  ]
+}

@@ -1201,6 +1201,52 @@ class TradingBot:
         order = self.place_market_order(side, position_size, position_idx=position_idx)
         
         if order:
+            # Get current strategy name for trade logging
+            # First try to get from TradingBot instance (set by LiveTradingBot)
+            strategy_name_for_log = getattr(self, 'current_strategy_name', None)
+            
+            # Fallback to config if not found
+            if not strategy_name_for_log:
+                try:
+                    trading_config = config.load_trading_config()
+                    strategy_name_for_log = trading_config.get('strategy', 'Unknown')
+                except:
+                    strategy_name_for_log = 'Unknown'
+            
+            # Log trade with strategy to trade_log.json
+            try:
+                trade_log_path = Path(__file__).parent.parent / 'Frontend-API' / 'trade_log.json'
+                import json
+                
+                # Read existing log
+                trade_log = {'trades': []}
+                if trade_log_path.exists():
+                    with open(trade_log_path, 'r') as f:
+                        trade_log = json.load(f)
+                
+                # Add new trade entry
+                order_id = order.get('id', '')
+                if order_id and order_id != 'N/A':
+                    trade_entry = {
+                        'orderId': order_id,
+                        'strategy': strategy_name_for_log,
+                        'symbol': self.symbol,
+                        'side': side,
+                        'timestamp': int(time.time() * 1000),  # Milliseconds
+                        'entryPrice': current_price
+                    }
+                    trade_log['trades'].append(trade_entry)
+                    
+                    # Keep only last 1000 trades to prevent file from growing too large
+                    if len(trade_log['trades']) > 1000:
+                        trade_log['trades'] = trade_log['trades'][-1000:]
+                    
+                    # Write back to file
+                    with open(trade_log_path, 'w') as f:
+                        json.dump(trade_log, f, indent=2)
+            except Exception as e:
+                log.warning(f"⚠️  Failed to log trade to trade_log.json: {e}")
+            
             # Track position (support hedge mode)
             position_data = {
                 'side': signal,
@@ -1550,6 +1596,8 @@ class LiveTradingBot:
         
         # Initialize trading bot (use resolved values from config)
         self.trading_bot = TradingBot(symbol=self.symbol, use_demo=self.use_demo)
+        # Set strategy name for trade logging
+        self.trading_bot.current_strategy_name = self.strategy_name
         
         # Strategy function mapping
         self.strategy_funcs = {
@@ -1884,6 +1932,8 @@ class LiveTradingBot:
                         if trading_config.get('strategy') != self.strategy_name:
                             old_strategy = self.strategy_name
                             self.strategy_name = trading_config.get('strategy', self.strategy_name)
+                            # Update strategy name in TradingBot for trade logging
+                            self.trading_bot.current_strategy_name = self.strategy_name
                             log.info(f"🔄 Strategy updated from config: {old_strategy} → {self.strategy_name}")
                         
                         if trading_config.get('symbol') != self.symbol:
@@ -2018,6 +2068,9 @@ class LiveTradingBot:
                 elif signal != 0:
                     # Entry signal: Open new position
                     log.info(f"🎯 Executing signal: {signal_names.get(signal, 'UNKNOWN')}")
+                    
+                    # Store strategy name in TradingBot instance for trade logging (before execute_signal)
+                    self.trading_bot.current_strategy_name = self.strategy_name
                     
                     # Execute new signal
                     if portfolio_value:
